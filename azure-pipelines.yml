@@ -1,0 +1,467 @@
+# azure-pipelines.yml
+# Northumbria NHS Foundation Trust - Test Automation Pipeline
+# Includes retry logic for flaky tests
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - feature/*
+  paths:
+    include:
+      - PlaywrightTests/**
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '8.0.x'
+  playwrightBrowsers: 'chromium firefox'
+  maxRetries: 3
+  testResultsDir: '$(Build.ArtifactStagingDirectory)/TestResults'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Restore'
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Project'
+        steps:
+          - task: UseDotNet@2
+            displayName: 'Install .NET SDK'
+            inputs:
+              version: '$(dotnetVersion)'
+              includePreviewVersions: false
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Restore NuGet Packages'
+            inputs:
+              command: 'restore'
+              projects: 'PlaywrightTests/PlaywrightTests.csproj'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Build Project'
+            inputs:
+              command: 'build'
+              projects: 'PlaywrightTests/PlaywrightTests.csproj'
+              arguments: '--configuration $(buildConfiguration) --no-restore'
+
+          - task: PowerShell@2
+            displayName: 'Install Playwright Browsers'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $playwrightScript = "PlaywrightTests/bin/$(buildConfiguration)/net8.0/playwright.ps1"
+                if (Test-Path $playwrightScript) {
+                    pwsh $playwrightScript install $(playwrightBrowsers)
+                } else {
+                    Write-Host "Installing Playwright via dotnet tool"
+                    dotnet tool install --global Microsoft.Playwright.CLI
+                    playwright install $(playwrightBrowsers)
+                }
+
+  - stage: Test_Smoke
+    displayName: 'Smoke Tests'
+    dependsOn: Build
+    jobs:
+      - job: SmokeTests
+        displayName: 'Run Smoke Tests with Retry'
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              version: '$(dotnetVersion)'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Restore Packages'
+            inputs:
+              command: 'restore'
+              projects: 'PlaywrightTests/PlaywrightTests.csproj'
+
+          - task: PowerShell@2
+            displayName: 'Install Playwright Browsers'
+            inputs:
+              targetType: 'inline'
+              script: |
+                dotnet build PlaywrightTests/PlaywrightTests.csproj -c $(buildConfiguration)
+                pwsh PlaywrightTests/bin/$(buildConfiguration)/net8.0/playwright.ps1 install
+
+          - task: PowerShell@2
+            displayName: 'Run Smoke Tests with Retry'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $maxRetries = $(maxRetries)
+                $attempt = 1
+                $success = $false
+                $resultsDir = "$(testResultsDir)/Smoke"
+                
+                New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+                
+                while ($attempt -le $maxRetries -and -not $success) {
+                    Write-Host "##[section]Smoke Test Attempt $attempt of $maxRetries"
+                    
+                    $trxFile = "$resultsDir/SmokeTests_Attempt$attempt.trx"
+                    
+                    dotnet test PlaywrightTests/PlaywrightTests.csproj `
+                        --configuration $(buildConfiguration) `
+                        --no-build `
+                        --filter "Category=Smoke" `
+                        --logger "trx;LogFileName=$trxFile" `
+                        --logger "console;verbosity=detailed" `
+                        --results-directory $resultsDir
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        $success = $true
+                        Write-Host "##[section]Smoke tests passed on attempt $attempt"
+                    } else {
+                        Write-Host "##[warning]Smoke tests failed on attempt $attempt"
+                        $attempt++
+                        if ($attempt -le $maxRetries) {
+                            Write-Host "##[section]Waiting 10 seconds before retry..."
+                            Start-Sleep -Seconds 10
+                        }
+                    }
+                }
+                
+                if (-not $success) {
+                    Write-Host "##[error]Smoke tests failed after $maxRetries attempts"
+                    exit 1
+                }
+              env:
+                PLAYWRIGHT_BROWSER: 'chrome'
+                PLAYWRIGHT_HEADLESS: 'true'
+
+          - task: PublishTestResults@2
+            displayName: 'Publish Smoke Test Results'
+            condition: always()
+            inputs:
+              testResultsFormat: 'VSTest'
+              testResultsFiles: '$(testResultsDir)/Smoke/*.trx'
+              mergeTestResults: true
+              testRunTitle: 'Smoke Tests'
+
+  - stage: Test_Functional
+    displayName: 'Functional Tests'
+    dependsOn: Test_Smoke
+    condition: succeeded()
+    jobs:
+      - job: FunctionalTests
+        displayName: 'Run Functional Tests with Retry'
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              version: '$(dotnetVersion)'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Restore Packages'
+            inputs:
+              command: 'restore'
+              projects: 'PlaywrightTests/PlaywrightTests.csproj'
+
+          - task: PowerShell@2
+            displayName: 'Install Playwright Browsers'
+            inputs:
+              targetType: 'inline'
+              script: |
+                dotnet build PlaywrightTests/PlaywrightTests.csproj -c $(buildConfiguration)
+                pwsh PlaywrightTests/bin/$(buildConfiguration)/net8.0/playwright.ps1 install
+
+          - task: PowerShell@2
+            displayName: 'Run Functional Tests with Retry'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $maxRetries = $(maxRetries)
+                $attempt = 1
+                $success = $false
+                $resultsDir = "$(testResultsDir)/Functional"
+                
+                New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+                
+                while ($attempt -le $maxRetries -and -not $success) {
+                    Write-Host "##[section]Functional Test Attempt $attempt of $maxRetries"
+                    
+                    $trxFile = "$resultsDir/FunctionalTests_Attempt$attempt.trx"
+                    
+                    dotnet test PlaywrightTests/PlaywrightTests.csproj `
+                        --configuration $(buildConfiguration) `
+                        --no-build `
+                        --filter "Category=Functional" `
+                        --logger "trx;LogFileName=$trxFile" `
+                        --logger "console;verbosity=detailed" `
+                        --results-directory $resultsDir
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        $success = $true
+                        Write-Host "##[section]Functional tests passed on attempt $attempt"
+                    } else {
+                        Write-Host "##[warning]Functional tests failed on attempt $attempt"
+                        $attempt++
+                        if ($attempt -le $maxRetries) {
+                            Start-Sleep -Seconds 10
+                        }
+                    }
+                }
+                
+                if (-not $success) {
+                    Write-Host "##[error]Functional tests failed after $maxRetries attempts"
+                    exit 1
+                }
+              env:
+                PLAYWRIGHT_BROWSER: 'chrome'
+                PLAYWRIGHT_HEADLESS: 'true'
+
+          - task: PublishTestResults@2
+            displayName: 'Publish Functional Test Results'
+            condition: always()
+            inputs:
+              testResultsFormat: 'VSTest'
+              testResultsFiles: '$(testResultsDir)/Functional/*.trx'
+              mergeTestResults: true
+              testRunTitle: 'Functional Tests'
+
+  - stage: Test_Regression
+    displayName: 'Regression Tests'
+    dependsOn: Test_Functional
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: RegressionTests
+        displayName: 'Run Regression Tests with Retry'
+        timeoutInMinutes: 60
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              version: '$(dotnetVersion)'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Restore Packages'
+            inputs:
+              command: 'restore'
+              projects: 'PlaywrightTests/PlaywrightTests.csproj'
+
+          - task: PowerShell@2
+            displayName: 'Install Playwright Browsers'
+            inputs:
+              targetType: 'inline'
+              script: |
+                dotnet build PlaywrightTests/PlaywrightTests.csproj -c $(buildConfiguration)
+                pwsh PlaywrightTests/bin/$(buildConfiguration)/net8.0/playwright.ps1 install
+
+          - task: PowerShell@2
+            displayName: 'Run Regression Tests with Retry'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $maxRetries = $(maxRetries)
+                $attempt = 1
+                $success = $false
+                $resultsDir = "$(testResultsDir)/Regression"
+                
+                New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+                
+                while ($attempt -le $maxRetries -and -not $success) {
+                    Write-Host "##[section]Regression Test Attempt $attempt of $maxRetries"
+                    
+                    dotnet test PlaywrightTests/PlaywrightTests.csproj `
+                        --configuration $(buildConfiguration) `
+                        --no-build `
+                        --filter "Category=Regression" `
+                        --logger "trx;LogFileName=$resultsDir/RegressionTests_Attempt$attempt.trx" `
+                        --results-directory $resultsDir
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        $success = $true
+                        Write-Host "##[section]Regression tests passed on attempt $attempt"
+                    } else {
+                        Write-Host "##[warning]Regression tests failed on attempt $attempt"
+                        $attempt++
+                        if ($attempt -le $maxRetries) {
+                            Start-Sleep -Seconds 15
+                        }
+                    }
+                }
+                
+                if (-not $success) {
+                    Write-Host "##[error]Regression tests failed after $maxRetries attempts"
+                    exit 1
+                }
+              env:
+                PLAYWRIGHT_BROWSER: 'chrome'
+                PLAYWRIGHT_HEADLESS: 'true'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'VSTest'
+              testResultsFiles: '$(testResultsDir)/Regression/*.trx'
+              mergeTestResults: true
+              testRunTitle: 'Regression Tests'
+
+  - stage: Test_Accessibility
+    displayName: 'Accessibility Tests'
+    dependsOn: Test_Functional
+    condition: succeeded()
+    jobs:
+      - job: AccessibilityTests
+        displayName: 'Run Accessibility Tests with Retry'
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              version: '$(dotnetVersion)'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Restore Packages'
+            inputs:
+              command: 'restore'
+              projects: 'PlaywrightTests/PlaywrightTests.csproj'
+
+          - task: PowerShell@2
+            displayName: 'Install Playwright Browsers'
+            inputs:
+              targetType: 'inline'
+              script: |
+                dotnet build PlaywrightTests/PlaywrightTests.csproj -c $(buildConfiguration)
+                pwsh PlaywrightTests/bin/$(buildConfiguration)/net8.0/playwright.ps1 install
+
+          - task: PowerShell@2
+            displayName: 'Run Accessibility Tests with Retry'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $maxRetries = $(maxRetries)
+                $attempt = 1
+                $success = $false
+                $resultsDir = "$(testResultsDir)/Accessibility"
+                
+                New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+                
+                while ($attempt -le $maxRetries -and -not $success) {
+                    Write-Host "##[section]Accessibility Test Attempt $attempt of $maxRetries"
+                    
+                    dotnet test PlaywrightTests/PlaywrightTests.csproj `
+                        --configuration $(buildConfiguration) `
+                        --no-build `
+                        --filter "Category=Accessibility" `
+                        --logger "trx;LogFileName=$resultsDir/AccessibilityTests_Attempt$attempt.trx" `
+                        --results-directory $resultsDir
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        $success = $true
+                    } else {
+                        $attempt++
+                        if ($attempt -le $maxRetries) {
+                            Start-Sleep -Seconds 10
+                        }
+                    }
+                }
+                
+                if (-not $success) { exit 1 }
+              env:
+                PLAYWRIGHT_BROWSER: 'chrome'
+                PLAYWRIGHT_HEADLESS: 'true'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'VSTest'
+              testResultsFiles: '$(testResultsDir)/Accessibility/*.trx'
+              mergeTestResults: true
+              testRunTitle: 'Accessibility Tests'
+
+  - stage: Test_Performance
+    displayName: 'Performance Tests'
+    dependsOn: Test_Functional
+    condition: succeeded()
+    jobs:
+      - job: PerformanceTests
+        displayName: 'Run Performance Tests with Retry'
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              version: '$(dotnetVersion)'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Restore Packages'
+            inputs:
+              command: 'restore'
+              projects: 'PlaywrightTests/PlaywrightTests.csproj'
+
+          - task: PowerShell@2
+            displayName: 'Install Playwright Browsers'
+            inputs:
+              targetType: 'inline'
+              script: |
+                dotnet build PlaywrightTests/PlaywrightTests.csproj -c $(buildConfiguration)
+                pwsh PlaywrightTests/bin/$(buildConfiguration)/net8.0/playwright.ps1 install
+
+          - task: PowerShell@2
+            displayName: 'Run Performance Tests with Retry'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $maxRetries = $(maxRetries)
+                $attempt = 1
+                $success = $false
+                $resultsDir = "$(testResultsDir)/Performance"
+                
+                New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+                
+                while ($attempt -le $maxRetries -and -not $success) {
+                    Write-Host "##[section]Performance Test Attempt $attempt of $maxRetries"
+                    
+                    dotnet test PlaywrightTests/PlaywrightTests.csproj `
+                        --configuration $(buildConfiguration) `
+                        --no-build `
+                        --filter "Category=Performance" `
+                        --logger "trx;LogFileName=$resultsDir/PerformanceTests_Attempt$attempt.trx" `
+                        --results-directory $resultsDir
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        $success = $true
+                    } else {
+                        $attempt++
+                        if ($attempt -le $maxRetries) {
+                            Start-Sleep -Seconds 10
+                        }
+                    }
+                }
+                
+                if (-not $success) { exit 1 }
+              env:
+                PLAYWRIGHT_BROWSER: 'chrome'
+                PLAYWRIGHT_HEADLESS: 'true'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'VSTest'
+              testResultsFiles: '$(testResultsDir)/Performance/*.trx'
+              mergeTestResults: true
+              testRunTitle: 'Performance Tests'
+
+  - stage: PublishArtifacts
+    displayName: 'Publish Artifacts'
+    dependsOn:
+      - Test_Smoke
+      - Test_Functional
+      - Test_Accessibility
+      - Test_Performance
+    condition: always()
+    jobs:
+      - job: PublishJob
+        displayName: 'Publish Test Artifacts'
+        steps:
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Test Results'
+            inputs:
+              PathtoPublish: '$(testResultsDir)'
+              ArtifactName: 'TestResults'
+              publishLocation: 'Container'

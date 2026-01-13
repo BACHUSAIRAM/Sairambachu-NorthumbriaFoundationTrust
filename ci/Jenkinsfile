@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+    
+    parameters {
+        choice(
+            name: 'TEST_ENVIRONMENT',
+            choices: ['local', 'dev', 'staging', 'prod'],
+            description: 'Environment to test against'
+        )
+        choice(
+            name: 'BROWSER',
+            choices: ['chrome', 'firefox', 'msedge'],
+            description: 'Browser to run tests in'
+        )
+    }
+    
+    environment {
+        DOTNET_VERSION = '8.0'
+        DOTNET_ENVIRONMENT = "${params.TEST_ENVIRONMENT}"
+        PLAYWRIGHT_BROWSER = "${params.BROWSER}"
+    }
+    
+    stages {
+        stage('Setup') {
+            steps {
+                echo "Setting up environment for ${params.TEST_ENVIRONMENT}..."
+                sh '''
+                    dotnet --version
+                    which dotnet
+                '''
+            }
+        }
+        
+        stage('Restore') {
+            steps {
+                echo "Restoring NuGet packages..."
+                dir('PlaywrightTests') {
+                    sh 'dotnet restore'
+                }
+            }
+        }
+        
+        stage('Install Playwright') {
+            steps {
+                echo "Installing Playwright browsers..."
+                dir('PlaywrightTests') {
+                    sh 'dotnet build'
+                    sh 'playwright install'
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                echo "Running tests on ${params.BROWSER} in ${params.TEST_ENVIRONMENT} environment..."
+                dir('PlaywrightTests') {
+                    sh '''
+                        dotnet test \
+                          --no-build \
+                          --logger "trx;LogFileName=test-results.trx" \
+                          --logger "console;verbosity=detailed"
+                    '''
+                }
+            }
+        }
+        
+        stage('Collect Artifacts') {
+            steps {
+                echo "Collecting Extent Reports and artifacts from PlaywrightTests/TestResults..."
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "Publishing test results..."
+            
+            // Publish test results (trx file is still in standard location)
+            junit 'PlaywrightTests/test-results.trx'
+            
+            // Archive artifacts from project-level TestResults folder
+            script {
+                def testResultsPath = "PlaywrightTests/TestResults/**"
+                 echo "Archiving from: ${testResultsPath}"
+                 archiveArtifacts artifacts: testResultsPath, allowEmptyArchive: true
+            }
+        }
+        
+        failure {
+            echo "Tests failed!"
+            script {
+                def testResultsPath = "PlaywrightTests/TestResults/**"
+                 archiveArtifacts artifacts: testResultsPath, allowEmptyArchive: true
+            }
+        }
+        
+        success {
+            echo "All tests passed!"
+        }
+    }
+}

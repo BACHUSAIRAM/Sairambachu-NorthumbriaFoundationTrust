@@ -1,0 +1,80 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    
+    <!-- Enable long path support -->
+    <LongPathsEnabled>true</LongPathsEnabled>
+    
+    <!-- Project metadata for UK NHS compliance -->
+    <Authors>SAIRAM BACHU</Authors>
+    <Company>Northumbria Healthcare NHS Foundation Trust</Company>
+    <Description>Playwright Test Automation Framework following UK GDS and NHS Digital Standards</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="ExtentReports" Version="5.0.5-beta1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.4.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="RestSharp" Version="112.1.0" />
+    <PackageReference Include="Reqnroll" Version="2.2.0" />
+    <PackageReference Include="Reqnroll.NUnit" Version="2.2.0" />
+    <PackageReference Include="Reqnroll.Tools.MsBuild.Generation" Version="2.2.0" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.48.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <!-- Configuration file - Single consolidated appsettings.json -->
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <!-- Test data files -->
+  <ItemGroup>
+    <None Update="Data\search-datasets.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Data\search-datasets.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Resource files -->
+  <ItemGroup>
+    <None Update="tools\axe\axe.min.js" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Resources\Accessibility\cc-contrast-fix.css" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Config\" />
+    <Folder Include="Features\Functional\" />
+    <Folder Include="Features\NonFunctional\" />
+    <Folder Include="Features\Regression\" />
+    <Folder Include="Features\Smoke\" />
+    <Folder Include="TestResults\" />
+  </ItemGroup>
+
+  <!-- Exclude TestResults from build to prevent long path issues -->
+  <ItemGroup>
+    <Compile Remove="TestResults\**" />
+    <EmbeddedResource Remove="TestResults\**" />
+    <None Remove="TestResults\**" />
+  </ItemGroup>
+
+  <Target Name="EnsureTestResultsFolder" AfterTargets="Build">
+    <MakeDir Directories="$(OutputPath)TestResults" />
+  </Target>
+
+</Project>

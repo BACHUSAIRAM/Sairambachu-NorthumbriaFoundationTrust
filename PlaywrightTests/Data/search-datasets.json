@@ -1,0 +1,24 @@
+{
+  "smoke": [
+    {
+      "term": "covid",
+      "expectResults": true
+    },
+    {
+      "term": "appointments",
+      "expectResults": true
+    }
+  ],
+  "empty": [
+    {
+      "term": "northumbria-no-results-check",
+      "expectResults": false,
+      "expectedMessage": "No results"
+    },
+    {
+      "term": "northumbria-placeholder-scan",
+      "expectResults": false,
+      "expectedMessage": "No results"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+/* 
+ * ============================================================================
+ * Accessibility Contrast Fixes - Cookie Banner
+ * ============================================================================
+ * Project: Northumbria Healthcare NHS Foundation Trust - Test Automation
+ * Purpose: WCAG 2.1 Level AA Compliance for Cookie Banner Controls
+ * 
+ * Standards Compliance:
+ * - WCAG 2.1 Level AA (Success Criterion 1.4.3 Contrast Minimum)
+ * - UK GDS Digital Service Standard
+ * - NHS Digital Accessibility Guidelines
+ * 
+ * Description:
+ * Place this stylesheet on the site or inject during testing to ensure 
+ * cookie controls meet WCAG AA contrast requirements (4.5:1 for normal text).
+ * These rules are intentionally specific and use !important to override 
+ * third-party styles during testing.
+ * 
+ * Author: SAIRAM BACHU
+ * Organisation: Northumbria Healthcare NHS Foundation Trust
+ * Last Modified: January 2025
+ * Version: 1.0.0
+ * ============================================================================
+ */
+
+/* Make cookie banner background neutral and ensure text has high contrast */
+.cc-banner, .cookie-banner, .cc-banner, .cc-cookie {
+  background-color: #ffffff !important; /* white background */
+  color: #0b2d6b !important;            /* dark navy text for high contrast */
+}
+
+/* Links inside banner: dark blue, underlined for visibility */
+.cc-link, .cookie-banner a, .cc-banner a {
+  color: #0b3d91 !important; /* higher-contrast link color */
+  text-decoration: underline !important;
+}
+
+/* Primary/action buttons: dark background with white text */
+.cc-allow, .cookie-banner .allow, button.cookie-accept, #onetrust-accept-btn-handler {
+  background-color: #0b2d6b !important;
+  color: #ffffff !important;
+  border: 1px solid #08305a !important;
+}
+
+/* Secondary/dismiss buttons: light background with dark text and visible border */
+.cc-deny, .cookie-banner .deny, button.cookie-deny, .cc-reject {
+  background-color: #f2f2f2 !important;
+  color: #0b2d6b !important;
+  border: 1px solid #c7c7c7 !important;
+}
+
+/* Increase font size and weight slightly to help legibility */
+.cc-banner * , .cookie-banner * {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* Focus styles for keyboard users (WCAG 2.4.7) */
+.cc-banner a:focus, .cookie-banner button:focus, .cc-link:focus, .cc-allow:focus, .cc-deny:focus {
+  outline: 3px solid #ffd54f !important; /* visible yellow outline */
+  outline-offset: 2px !important;
+}
+
+/* Ensure sufficient contrast for icons or SVGs that are purely decorative */
+.cc-banner svg, .cookie-banner svg { 
+  fill: #0b2d6b !important; 
+}
+
+/* If the cookie banner uses semitransparent overlay, ensure text sits on an opaque panel */
+.cookie-overlay, .cc-overlay { 
+  background: rgba(255,255,255,0.95) !important; 
+}
