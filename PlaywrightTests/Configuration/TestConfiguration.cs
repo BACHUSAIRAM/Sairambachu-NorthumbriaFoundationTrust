@@ -68,7 +68,7 @@ namespace PlaywrightTests.Configuration
         public bool DevTools { get; private set; } = false;
         public int ViewportWidth { get; private set; } = 1920;
         public int ViewportHeight { get; private set; } = 1080;
-        public bool UseFullWindow { get; private set; } = true;
+        public bool UseFullWindow { get; private set; } = false;
 
         #endregion
 

@@ -327,14 +327,41 @@ namespace PlaywrightTests.Steps
 
             var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var candidate1 = Path.GetFullPath(Path.Combine(baseDir, normalized));
-            if (File.Exists(candidate1)) return candidate1;
 
-            var candidate2 = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", normalized));
-            if (File.Exists(candidate2)) return candidate2;
+            var candidates = new List<string>();
 
-            var candidate3 = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), normalized));
-            return candidate3;
+            void AddCandidate(string rawPath)
+            {
+                try
+                {
+                    var fullPath = Path.GetFullPath(rawPath);
+                    if (!candidates.Contains(fullPath))
+                    {
+                        candidates.Add(fullPath);
+                    }
+                }
+                catch
+                {
+                    // Ignore invalid paths
+                }
+            }
+
+            AddCandidate(Path.Combine(baseDir, normalized));
+            AddCandidate(Path.Combine(baseDir, "..", "..", "..", normalized));
+            AddCandidate(Path.Combine(Directory.GetCurrentDirectory(), normalized));
+
+            var existingCandidates = candidates
+                .Where(File.Exists)
+                .Select(path => new { Path = path, Timestamp = File.GetLastWriteTimeUtc(path) })
+                .OrderByDescending(x => x.Timestamp)
+                .ToList();
+
+            if (existingCandidates.Any())
+            {
+                return existingCandidates.First().Path;
+            }
+
+            return candidates.Last();
         }
 
         private List<(IPage page, string label, int index)> GetTargets()
@@ -369,7 +396,7 @@ namespace PlaywrightTests.Steps
             {
                 try
                 {
-                    await action(page, label, idx).ConfigureAwait(false);
+                    await ExecuteWithRecoveryAsync(page, label, idx, action).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -396,6 +423,118 @@ namespace PlaywrightTests.Steps
                 }
             }
             if (errors.Any()) Assert.Fail("One or more browsers failed:\n" + string.Join("\n", errors));
+        }
+
+        private async Task ExecuteWithRecoveryAsync(IPage page, string label, int index, Func<IPage, string, int, Task> action)
+        {
+            try
+            {
+                await action(page, label, index).ConfigureAwait(false);
+            }
+            catch (PlaywrightException ex) when (IsTargetClosed(ex))
+            {
+                var recoveredPage = await TryRecreatePageAsync(index, label, ex).ConfigureAwait(false);
+                if (recoveredPage == null)
+                {
+                    throw;
+                }
+
+                await action(recoveredPage, label, index).ConfigureAwait(false);
+            }
+            catch (PlaywrightException ex) when (IsTransientNavigationError(ex))
+            {
+                var recovered = await TryRecoverNavigationAsync(page, label, ex).ConfigureAwait(false);
+                if (!recovered)
+                {
+                    throw;
+                }
+
+                await action(page, label, index).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<IPage?> TryRecreatePageAsync(int index, string label, Exception reason)
+        {
+            if (_specFlowContext.BrowserContexts == null || index >= _specFlowContext.BrowserContexts.Count)
+            {
+                Console.WriteLine($"[Recovery:{label}] Unable to recreate page for index {index}: browser context missing.");
+                return null;
+            }
+
+            var context = _specFlowContext.BrowserContexts[index];
+            if (context == null)
+            {
+                Console.WriteLine($"[Recovery:{label}] Browser context at index {index} is null.");
+                return null;
+            }
+
+            try
+            {
+                var newPage = await context.NewPageAsync().ConfigureAwait(false);
+
+                _specFlowContext.Pages ??= new List<IPage>();
+                while (_specFlowContext.Pages.Count <= index)
+                {
+                    _specFlowContext.Pages.Add(newPage);
+                }
+                _specFlowContext.Pages[index] = newPage;
+
+                if (index == 0)
+                {
+                    _specFlowContext.Page = newPage;
+                }
+
+                Console.WriteLine($"[Recovery:{label}] Target closed ({reason.Message}); new page created.");
+                return newPage;
+            }
+            catch (Exception recreateEx)
+            {
+                Console.WriteLine($"[Recovery:{label}] Failed to recreate page: {recreateEx.Message}");
+                return null;
+            }
+        }
+
+        private async Task<bool> TryRecoverNavigationAsync(IPage page, string label, Exception reason)
+        {
+            try
+            {
+                Console.WriteLine($"[Recovery:{label}] Transient navigation failure detected ({reason.Message}). Retrying navigation...");
+                await page.WaitForTimeoutAsync(750);
+                await page.GotoAsync(_config.BaseUrl, new PageGotoOptions
+                {
+                    WaitUntil = WaitUntilState.DOMContentLoaded,
+                    Timeout = _config.Timeout
+                }).ConfigureAwait(false);
+                await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions
+                {
+                    Timeout = _config.Timeout
+                }).ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception retryEx)
+            {
+                Console.WriteLine($"[Recovery:{label}] Navigation retry failed: {retryEx.Message}");
+                return false;
+            }
+        }
+
+        private static bool IsTargetClosed(PlaywrightException ex)
+        {
+            var message = ex.Message ?? string.Empty;
+            return message.IndexOf("Target page, context or browser has been closed", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("browser has been closed", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("page has been closed", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsTransientNavigationError(PlaywrightException ex)
+        {
+            var message = ex.Message ?? string.Empty;
+            if (string.IsNullOrEmpty(message)) return false;
+
+            return message.IndexOf("net::ERR_EMPTY_RESPONSE", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("net::ERR_CONNECTION_RESET", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("Navigation timeout", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("Protocol error", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         [Then("the search should not navigate away from the homepage")]

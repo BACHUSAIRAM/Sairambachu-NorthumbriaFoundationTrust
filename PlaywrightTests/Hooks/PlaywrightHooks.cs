@@ -66,7 +66,7 @@ namespace PlaywrightTests.Hooks
                 browsersToRun = new List<string> { browserEnv };
             }
 
-            bool headless = false;
+            bool headless = _config.Headless;
 
             var parentTestName = _scenarioContext.ScenarioInfo.Title;
             try
@@ -89,19 +89,18 @@ namespace PlaywrightTests.Hooks
                     ? _playwright.Firefox
                     : _playwright.Chromium;
 
+                var launchArgs = new List<string> { "--enable-logging=stderr", "--v=1" };
+                if (_config.UseFullWindow)
+                {
+                    launchArgs.AddRange(new[] { "--start-maximized", "--start-fullscreen", "--kiosk" });
+                }
+
                 var launchOptions = new BrowserTypeLaunchOptions
                 {
                     Headless = headless,
                     SlowMo = _config.SlowMo,
-                    Args = new[] { "--enable-logging=stderr", "--v=1" }
+                    Args = launchArgs.ToArray()
                 };
-
-                // Best-effort full screen:
-                // - Chromium: start maximized / fullscreen
-                // - Firefox: ignores some Chromium flags, but will still run with no fixed viewport.
-                launchOptions.Args = launchOptions.Args
-                    .Concat(new[] { "--start-maximized", "--start-fullscreen", "--kiosk" })
-                    .ToArray();
 
                 if (browserName.Equals("chrome", StringComparison.OrdinalIgnoreCase))
                     launchOptions.Channel = "chrome";
@@ -114,9 +113,7 @@ namespace PlaywrightTests.Hooks
                 {
                     RecordVideoDir = Path.Combine(_runResultsDir!, "videos"),
                     RecordVideoSize = new RecordVideoSize { Width = _config.ViewportWidth, Height = _config.ViewportHeight },
-
-                    // Do not constrain the viewport; allow it to match the real window.
-                    ViewportSize = null
+                    ViewportSize = _config.UseFullWindow ? null : new ViewportSize { Width = _config.ViewportWidth, Height = _config.ViewportHeight }
                 };
 
                 var context = await browser.NewContextAsync(contextOptions);
