@@ -1,0 +1,416 @@
+# ============================================================================
+# .gitignore for Northumbria NHS Playwright Test Automation Framework
+# .NET 8 | Playwright | Reqnroll | NUnit
+# Author: SAIRAM BACHU
+# Organisation: Northumbria Healthcare NHS Foundation Trust
+# ============================================================================
+
+# ============================================================================
+# BUILD OUTPUTS
+# ============================================================================
+
+# .NET Build Output
+**/bin/
+**/obj/
+**/out/
+
+# Rider Build Output
+**/Publish/
+
+# ============================================================================
+# TEST ARTIFACTS AND RESULTS
+# ============================================================================
+
+# Test Results (NUnit, xUnit, MSTest)
+**/TestResults/
+**/TestResultsHistory/
+../*-TestResults/
+*.trx
+*.coverage
+*.coveragexml
+*.runsettings.user
+
+# Code Coverage
+coverage/
+*.lcov
+htmlcov/
+*.cobertura.xml
+
+# Live Unit Testing
+.axoCover/
+
+# ============================================================================
+# PLAYWRIGHT SPECIFIC
+# ============================================================================
+
+# Playwright Browsers and Cache
+PlaywrightTests/bin/Debug/net*/.playwright/
+PlaywrightTests/bin/Release/net*/.playwright/
+.playwright/
+playwright/.cache/
+
+# Playwright Reports and Traces
+playwright-report/
+test-results/
+playwright-traces/
+
+# Playwright Screenshots and Videos (if not needed in repo)
+**/screenshots/
+**/videos/
+**/traces/
+**/evidence/
+
+# ============================================================================
+# TOOLS BUILD OUTPUTS
+# ============================================================================
+
+tools/**/bin/
+tools/**/obj/
+tools/**/TestResults/
+
+# ============================================================================
+# IDE AND EDITOR FILES
+# ============================================================================
+
+# Visual Studio
+.vs/
+.vscode/
+*.cache
+*.vsidx
+*.vspscc
+*.vsspscc
+*.vssscc
+.vshistory/
+*.sln.docstates
+*.userprefs
+.localhistory/
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+*.sln.DotSettings.user
+
+# Visual Studio Profiler
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# ============================================================================
+# USER-SPECIFIC FILES
+# ============================================================================
+
+*.user
+*.suo
+*.rsuser
+*.userosscache
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# ============================================================================
+# NUGET PACKAGES
+# ============================================================================
+
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nuget.props
+*.nuget.targets
+
+# ============================================================================
+# AUTO-GENERATED FILES
+# ============================================================================
+
+# Reqnroll/SpecFlow Generated Files
+*.feature.cs
+
+# .NET Generated Files
+GlobalUsings.g.cs
+AssemblyInfo.cs
+.NETCoreApp*.AssemblyAttributes.cs
+Microsoft.NET.Test.Sdk.Program.cs
+*.GeneratedMSBuildEditorConfig.editorconfig
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+
+*.tmp
+*.temp
+~$*
+*.bak
+*.swp
+*~
+._*
+
+# ============================================================================
+# OPERATING SYSTEM FILES
+# ============================================================================
+
+# Windows
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon?
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# GITHUB COPILOT AND AI TOOLS
+# ============================================================================
+
+.copilot/
+copilot-chat/
+CopilotSnapshots/
+CopilotIndices/
+.github-copilot/
+
+# ============================================================================
+# SENSITIVE CONFIGURATION AND CREDENTIALS
+# ============================================================================
+
+# Local Configuration
+appsettings.local.json
+appsettings.secrets.json
+appsettings.*.local.json
+secrets.json
+local.settings.json
+
+# Xray Configuration (contains sensitive credentials)
+appsettings.xray.json
+
+# Credentials and Keys
+*.key
+*.pem
+*.pfx
+*.p12
+*.cer
+*.crt
+*.der
+*.p7b
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Connection Strings
+connectionstrings.json
+connectionstrings.*.json
+
+# Xray/Jira Credentials (if stored locally)
+xray-credentials.json
+jira-token.txt
+
+# ============================================================================
+# CI/CD AND DEPLOYMENT
+# ============================================================================
+
+# Azure
+*.publishsettings
+*.pubxml
+*.azurePubxml
+
+# AWS
+.aws/
+aws-credentials
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+*.tfvars
+
+# ============================================================================
+# LOCAL SCRIPTS AND ARTIFACTS
+# ============================================================================
+
+scripts/artifacts/
+scripts/temp/
+scripts/output/
+
+# ============================================================================
+# DATABASE FILES (if any local test databases)
+# ============================================================================
+
+*.mdf
+*.ldf
+*.ndf
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ============================================================================
+# LOG FILES
+# ============================================================================
+
+*.log
+logs/
+*.log.
+
+# Exception: Keep important logs that should be tracked
+!PlaywrightTests/Config/*.log
+
+# ============================================================================
+# DOCUMENTATION ARTIFACTS (if generated)
+# ============================================================================
+
+# DocFX
+_site/
+api/
+obj/
+
+# Doxygen
+html/
+latex/
+
+# ============================================================================
+# PERFORMANCE AND PROFILING
+# ============================================================================
+
+*.psess
+*.vsp
+*.vspx
+BenchmarkDotNet.Artifacts/
+PerfLogs/
+
+# ============================================================================
+# SECURITY SCANNING RESULTS
+# ============================================================================
+
+*.sarif
+security-scan-results/
+vulnerability-report.json
+
+# ============================================================================
+# PACKAGE MANAGERS (if using npm/yarn for any tooling)
+# ============================================================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ============================================================================
+# MISC
+# ============================================================================
+
+# Backup files
+*.orig
+*.backup
+*_backup
+
+# Archive files (if not needed)
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+
+# Exception: Keep intentional archives
+!tools/**/*.zip
+
+# ============================================================================
+# PROJECT-SPECIFIC EXCLUSIONS
+# ============================================================================
+
+# NHS Project Specific - Test Result Storage
+# These directories contain historical test execution data
+TestResultsHistory/
+PlaywrightTests/TestResultsHistory/
+
+# Extent Reports (generated HTML reports)
+ExtentReports/
+**/ExtentReport.html
+
+# Allure Results (if using Allure reporting)
+allure-results/
+allure-report/
+
+# Accessibility Reports (large JSON files generated per run)
+accessibility-reports/
+PlaywrightTests/accessibility-reports/
+**/accessibility-reports/*.json
+**/accessibility-reports/*.txt
+
+# Performance Reports (large JSON files generated per run)
+performance-reports/
+PlaywrightTests/performance-reports/
+**/performance-reports/*.json
+**/performance-reports/*.txt
+
+# Axe Accessibility Tool Artifacts
+tools/axe/
+**/axe.min.js
+
+# Test Run Artifacts (organized by run timestamp)
+# Pattern: TestResults/Run-YYYYMMDD-HHMMSS/
+**/TestResults/Run-*/
+**/TestResults/Run-Fallback/
+
+# Summaries and Trend Reports
+**/TestResults/**/Summaries/
+**/TestResults/TrendReport_*.txt
+**/TestResults/TestResults.csv
+
+# ============================================================================
+# EXCEPTIONS (Files that SHOULD be tracked)
+# ============================================================================
+
+# Force include important config templates
+!appsettings.template.json
+!appsettings.example.json
+
+# Force include GitHub Actions workflows
+!.github/workflows/*.yml
+!.github/workflows/*.yaml
+
+# Force include important documentation
+!README.md
+!CONTRIBUTING.md
+!LICENSE
+
+# Force include contrast fix CSS for accessibility
+!PlaywrightTests/accessibility/cc-contrast-fix.css
+
+# ============================================================================
+# END OF .GITIGNORE
+# Last Updated: January 2025
+# ============================================================================
