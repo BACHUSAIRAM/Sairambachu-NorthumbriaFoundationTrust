@@ -31,6 +31,7 @@ This repository contains the automated test framework for the Northumbria Health
 - **BDD Testing** using Reqnroll (SpecFlow successor)
 - **Browser Automation** using Microsoft Playwright
 - **Multi-browser Support** (Chrome, Firefox, Edge)
+- **Functional Acceptance Testing**
 - **Accessibility Testing** (WCAG 2.1 Level AA)
 - **Performance Testing** (SLA compliance)
 
@@ -265,4 +266,4 @@ Start-Process $report.FullName
 **SAIRAM BACHU**  
 Northumbria Healthcare NHS Foundation Trust
 
-© 2025 All Rights Reserved
+Â© 2025 All Rights Reserved
